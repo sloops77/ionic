@@ -148,9 +148,13 @@
       self.platforms = [];
       var grade = 'a';
 
-      if (self.isWebView()) {
+      if (this.isWebView()) {
         self.platforms.push('webview');
-        self.platforms.push('cordova');
+        if(!(!window.cordova && !window.PhoneGap && !window.phonegap)) {
+          self.platforms.push('cordova');
+        } else if(!!window.forge) {
+          self.platforms.push('trigger');
+        }
       } else {
         self.platforms.push('browser');
       }
@@ -188,7 +192,7 @@
      * @returns {boolean} Check if we are running within a WebView (such as Cordova).
      */
     isWebView: function() {
-      return !(!window.cordova && !window.PhoneGap && !window.phonegap);
+      return !(!window.cordova && !window.PhoneGap && !window.phonegap && !window.forge);
     },
     /**
      * @ngdoc method
