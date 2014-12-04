@@ -1,7 +1,7 @@
 {
   "name": "ionic",
-  "version": "1.0.0-beta.13",
-  "codename": "lanthanum-leopard",
+  "version": "1.0.0-beta.13__with_trigger_support",
+  "codename": "lanthanum-leopard__with_trigger_support",
   "homepage": "https://github.com/driftyco/ionic",
   "authors": [
     "Max Lynch <max@drifty.com>",
