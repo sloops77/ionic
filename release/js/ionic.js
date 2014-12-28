@@ -2115,7 +2115,11 @@ window.ionic.version = '1.0.0-beta.14';
 
       if (this.isWebView()) {
         this.platforms.push('webview');
-        this.platforms.push('cordova');
+        if(!(!window.cordova && !window.PhoneGap && !window.phonegap)) {
+          this.platforms.push('cordova');
+        } else if(!!window.forge) {
+          this.platforms.push('trigger');
+        }
       } else {
         this.platforms.push('browser');
       }
@@ -2153,7 +2157,7 @@ window.ionic.version = '1.0.0-beta.14';
      * @returns {boolean} Check if we are running within a WebView (such as Cordova).
      */
     isWebView: function() {
-      return !(!window.cordova && !window.PhoneGap && !window.phonegap);
+      return !(!window.cordova && !window.PhoneGap && !window.phonegap && !window.forge);
     },
     /**
      * @ngdoc method
