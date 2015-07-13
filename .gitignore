@@ -5,6 +5,7 @@ node_modules
 *.tmp
 *.tmp.*
 log.txt
+*.iml
 example/cordova/iOS/www/js/framework
 
 example/cordova/iOS/www/js/framework

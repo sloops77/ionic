@@ -3521,7 +3521,7 @@ ionic.DomUtil.ready(function() {
  *
  * ### iOS Notes
  * - If the content of your app (including the header) is being pushed up and
- *   out of view on input focus, try setting `cordova.plugins.Keyboard.disableScroll(true)`.
+ *   out of view on input focus, try setting `keyboardPlugin().disableScroll(true)`.
  *   This does **not** disable scrolling in the Ionic scroll view, rather it
  *   disables the native overflow scrolling that happens automatically as a
  *   result of focusing on inputs below the keyboard.
@@ -3637,18 +3637,18 @@ ionic.keyboard = {
    */
   hide: function() {
     if (keyboardHasPlugin()) {
-      cordova.plugins.Keyboard.close();
+      keyboardPlugin().close();
     }
     keyboardActiveElement && keyboardActiveElement.blur();
   },
 
   /**
-   * An alias for cordova.plugins.Keyboard.show(). If the keyboard plugin
+   * An alias for keyboardPlugin().show(). If the keyboard plugin
    * is installed, show the keyboard.
    */
   show: function() {
     if (keyboardHasPlugin()) {
-      cordova.plugins.Keyboard.show();
+      keyboardPlugin().show();
     }
   },
 
@@ -3682,6 +3682,13 @@ ionic.keyboard = {
    */
   enable: function() {
     keyboardInit();
+  },
+
+  /**
+   * Alias for keyboardPlugin, initialize all keyboard related event listeners.
+   */
+  getPlugin: function() {
+    return keyboardPlugin();
   }
 };
 
@@ -4020,7 +4027,7 @@ function keyboardHide() {
   if (ionic.Platform.isAndroid()) {
     // on android closing the keyboard with the back/dismiss button won't remove
     // focus and keyboard can re-appear on subsequent taps (like scrolling)
-    if (keyboardHasPlugin()) cordova.plugins.Keyboard.close();
+    if (keyboardHasPlugin()) keyboardPlugin().close();
     keyboardActiveElement && keyboardActiveElement.blur();
   }
 
@@ -4182,8 +4189,28 @@ function getViewportHeight() {
   return windowHeight;
 }
 
+function cordovaPlugin() {
+  if (window.cordova && cordova.plugins) {
+    return cordova.plugins.Keyboard;
+  }
+}
+
+function forgeModule() {
+  if (window.forge) {
+    return window.forge.ionic_keyboard;
+  }
+}
+
 function keyboardHasPlugin() {
-  return !!(window.cordova && cordova.plugins && cordova.plugins.Keyboard);
+  return !!(cordovaPlugin()) || !!(forgeModule());
+}
+
+function keyboardPlugin() {
+  plugin = cordovaPlugin()
+  if (plugin != null)
+    return plugin;
+  else
+    return forgeModule();
 }
 
 ionic.Platform.ready(function() {
