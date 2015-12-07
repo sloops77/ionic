@@ -1,5 +1,5 @@
 /*!
- * Copyright 2014 Drifty Co.
+ * Copyright 2015 Drifty Co.
  * http://drifty.com/
  *
  * Ionic, v1.1.1
@@ -1621,7 +1621,7 @@ window.ionic.version = '1.1.1';
     index: 10,
     defaults: {
       hold_timeout: 500,
-      hold_threshold: 1
+      hold_threshold: 9
     },
     timer: null,
     handler: function holdGesture(ev, inst) {
@@ -2268,12 +2268,12 @@ window.ionic.version = '1.1.1';
         platformName = n.toLowerCase();
       } else if (getParameterByName('ionicplatform')) {
         platformName = getParameterByName('ionicplatform');
+      } else if (self.ua.indexOf('Windows Phone') > -1) {
+        platformName = WINDOWS_PHONE;
       } else if (self.ua.indexOf('Android') > 0) {
         platformName = ANDROID;
       } else if (/iPhone|iPad|iPod/.test(self.ua)) {
         platformName = IOS;
-      } else if (self.ua.indexOf('Windows Phone') > -1) {
-        platformName = WINDOWS_PHONE;
       } else {
         platformName = self.navigator.platform && navigator.platform.toLowerCase().split(' ')[0] || '';
       }
@@ -2412,7 +2412,19 @@ window.ionic.version = '1.1.1';
   var platformName = null, // just the name, like iOS or Android
   platformVersion = null, // a float of the major and minor, like 7.1
   readyCallbacks = [],
-  windowLoadListenderAttached;
+  windowLoadListenderAttached,
+  platformReadyTimer = 2000; // How long to wait for platform ready before emitting a warning
+
+  verifyPlatformReady();
+
+  // Warn the user if deviceready did not fire in a reasonable amount of time, and how to fix it.
+  function verifyPlatformReady() {
+    setTimeout(function() {
+      if(!self.isReady) {
+        void 0;
+      }
+    }, platformReadyTimer);
+  }
 
   // setup listeners to know when the device is ready to go
   function onWindowLoad() {
@@ -2452,7 +2464,7 @@ window.ionic.version = '1.1.1';
     });
   }
 
-})(this, document, ionic);
+})(window, document, ionic);
 
 (function(document, ionic) {
   'use strict';
@@ -2481,6 +2493,9 @@ window.ionic.version = '1.1.1';
         break;
       }
     }
+
+    // Fallback in case the keys don't exist at all
+    ionic.CSS.TRANSITION = ionic.CSS.TRANSITION || 'transition';
 
     // The only prefix we care about is webkit for transitions.
     var isWebkit = ionic.CSS.TRANSITION.indexOf('webkit') > -1;
@@ -2710,6 +2725,11 @@ ionic.tap = {
             (ele.tagName == 'INPUT' && (/^(date|time|datetime-local|month|week)$/i).test(ele.type));
   },
 
+  isVideo: function(ele) {
+    return !!ele &&
+            (ele.tagName == 'VIDEO');
+  },
+
   isKeyboardElement: function(ele) {
     if ( !ionic.Platform.isIOS() || ionic.Platform.isIPad() ) {
       return ionic.tap.isTextInput(ele) && !ionic.tap.isDateInput(ele);
@@ -2776,6 +2796,9 @@ ionic.tap = {
   },
 
   requiresNativeClick: function(ele) {
+    if (ionic.Platform.isWindowsPhone() && (ele.tagName == 'A' || ele.tagName == 'BUTTON' || ele.hasAttribute('ng-click') || (ele.tagName == 'INPUT' && (ele.type == 'button' || ele.type == 'submit')))) {
+      return true; //Windows Phone edge case, prevent ng-click (and similar) events from firing twice on this platform
+    }
     if (!ele || ele.disabled || (/^(file|range)$/i).test(ele.type) || (/^(object|video)$/i).test(ele.tagName) || ionic.tap.isLabelContainingFileInput(ele)) {
       return true;
     }
@@ -2794,7 +2817,7 @@ ionic.tap = {
     if (ele && ele.nodeType === 1) {
       var element = ele;
       while (element) {
-        if ((element.dataset ? element.dataset.tapDisabled : element.getAttribute('data-tap-disabled')) == 'true') {
+        if ((element.dataset ? element.dataset.tapDisabled : element.getAttribute && element.getAttribute('data-tap-disabled')) == 'true') {
           return true;
         }
         element = element.parentElement;
@@ -2893,11 +2916,13 @@ function tapMouseDown(e) {
     void 0;
     e.stopPropagation();
 
-    if ((!ionic.tap.isTextInput(e.target) || tapLastTouchTarget !== e.target) && !(/^(select|option)$/i).test(e.target.tagName)) {
+    if ((!ionic.tap.isTextInput(e.target) || tapLastTouchTarget !== e.target) && !isSelectOrOption(e.target.tagName) && !ionic.tap.isVideo(e.target)) {
       // If you preventDefault on a text input then you cannot move its text caret/cursor.
       // Allow through only the text input default. However, without preventDefault on an
       // input the 300ms delay can change focus on inputs after the keyboard shows up.
       // The focusin event handles the chance of focus changing after the keyboard shows.
+      // Windows Phone - if you preventDefault on a video element then you cannot operate
+      // its native controls.
       e.preventDefault();
     }
 
@@ -2919,7 +2944,7 @@ function tapMouseUp(e) {
     return false;
   }
 
-  if (tapIgnoreEvent(e) || (/^(select|option)$/i).test(e.target.tagName)) return false;
+  if (tapIgnoreEvent(e) || isSelectOrOption(e.target.tagName)) return false;
 
   if (!tapHasPointerMoved(e)) {
     tapClick(e);
@@ -2974,7 +2999,7 @@ function tapTouchEnd(e) {
   if (!tapHasPointerMoved(e)) {
     tapClick(e);
 
-    if ((/^(select|option)$/i).test(e.target.tagName)) {
+    if (isSelectOrOption(e.target.tagName)) {
       e.preventDefault();
     }
   }
@@ -3009,6 +3034,10 @@ function tapEnableTouchEvents() {
 function tapIgnoreEvent(e) {
   if (e.isTapHandled) return true;
   e.isTapHandled = true;
+
+  if(ionic.tap.isElementTapDisabled(e.target)) {
+    return true;
+  }
 
   if (ionic.scroll.isScrolling && ionic.tap.containsOrIsTextInput(e.target)) {
     e.preventDefault();
@@ -3131,6 +3160,10 @@ function tapTargetElement(ele) {
     }
   }
   return ele;
+}
+
+function isSelectOrOption(tagName){
+  return (/^(select|option)$/i).test(tagName);
 }
 
 ionic.DomUtil.ready(function() {
@@ -3554,6 +3587,12 @@ var keyboardLandscapeViewportHeight = 0;
 var keyboardActiveElement;
 
 /**
+ * The previously focused input used to reset keyboard after focusing on a
+ * new non-keyboard element
+ */
+var lastKeyboardActiveElement;
+
+/**
  * The scroll view containing the currently focused input.
  */
 var scrollView;
@@ -3776,6 +3815,9 @@ function keyboardFocusIn(e) {
       e.target.readOnly ||
       !ionic.tap.isKeyboardElement(e.target) ||
       !(scrollView = ionic.DomUtil.getParentWithClass(e.target, SCROLL_CONTAINER_CSS))) {
+    if (keyboardActiveElement) {
+        lastKeyboardActiveElement = keyboardActiveElement;
+    }
     keyboardActiveElement = null;
     return;
   }
@@ -4011,9 +4053,9 @@ function keyboardHide() {
   ionic.keyboard.isOpen = false;
   ionic.keyboard.isClosing = false;
 
-  if (keyboardActiveElement) {
+  if (keyboardActiveElement || lastKeyboardActiveElement) {
     ionic.trigger('resetScrollView', {
-      target: keyboardActiveElement
+      target: keyboardActiveElement || lastKeyboardActiveElement
     }, true);
   }
 
@@ -4037,6 +4079,7 @@ function keyboardHide() {
   }
 
   keyboardActiveElement = null;
+  lastKeyboardActiveElement = null;
 }
 
 /**
@@ -4211,11 +4254,13 @@ function keyboardHasPlugin() {
 }
 
 function keyboardPlugin() {
-  plugin = cordovaPlugin()
-  if (plugin != null)
+  var plugin = cordovaPlugin();
+  if (plugin != null) {
     return plugin;
-  else
+  }
+  else {
     return forgeModule();
+  }
 }
 
 ionic.Platform.ready(function() {
@@ -4644,7 +4689,7 @@ var zyngaCore = { effect: {} };
       return id;
     }
   };
-})(this);
+})(window);
 
 /*
  * Scroller
@@ -5299,6 +5344,7 @@ ionic.views.Scroll = ionic.views.View.inherit({
       document.addEventListener("touchmove", self.touchMove, false);
       document.addEventListener("touchend", self.touchEnd, false);
       document.addEventListener("touchcancel", self.touchEnd, false);
+      document.addEventListener("wheel", self.mouseWheel, false);
 
     } else if (window.navigator.pointerEnabled) {
       // Pointer Events
@@ -6915,6 +6961,16 @@ ionic.scroll = {
       self.__maxScrollTop = Math.max((self.__contentHeight) - self.__clientHeight, 0);
       self.__maxScrollLeft = Math.max((self.__contentWidth) - self.__clientWidth, 0);
 
+      if(options.startY >= 0 || options.startX >= 0) {
+        ionic.requestAnimationFrame(function() {
+          self.el.scrollTop = options.startY || 0;
+          self.el.scrollLeft = options.startX || 0;
+
+          self.__scrollTop = self.el.scrollTop;
+          self.__scrollLeft = self.el.scrollLeft;
+        });
+      }
+
       self.options = {
 
         freeze: false,
@@ -7356,7 +7412,6 @@ ionic.scroll = {
   });
 
 })(ionic);
-
 
 (function(ionic) {
 'use strict';
@@ -8098,6 +8153,25 @@ ionic.views.Slider = ionic.views.View.inherit({
   initialize: function (options) {
     var slider = this;
 
+    var touchStartEvent, touchMoveEvent, touchEndEvent;
+    if (window.navigator.pointerEnabled) {
+      touchStartEvent = 'pointerdown';
+      touchMoveEvent = 'pointermove';
+      touchEndEvent = 'pointerup';
+    } else if (window.navigator.msPointerEnabled) {
+      touchStartEvent = 'MSPointerDown';
+      touchMoveEvent = 'MSPointerMove';
+      touchEndEvent = 'MSPointerUp';
+    } else {
+      touchStartEvent = 'touchstart';
+      touchMoveEvent = 'touchmove';
+      touchEndEvent = 'touchend';
+    }
+
+    var mouseStartEvent = 'mousedown';
+    var mouseMoveEvent = 'mousemove';
+    var mouseEndEvent = 'mouseup';
+
     // utilities
     var noop = function() {}; // simple no operation function
     var offloadFn = function(fn) { setTimeout(fn || noop, 0); }; // offload a functions execution
@@ -8105,7 +8179,6 @@ ionic.views.Slider = ionic.views.View.inherit({
     // check browser capabilities
     var browser = {
       addEventListener: !!window.addEventListener,
-      touch: ('ontouchstart' in window) || window.DocumentTouch && document instanceof DocumentTouch,
       transitions: (function(temp) {
         var props = ['transitionProperty', 'WebkitTransition', 'MozTransition', 'OTransition', 'msTransition'];
         for ( var i in props ) if (temp.style[ props[i] ] !== undefined) return true;
@@ -8208,6 +8281,11 @@ ionic.views.Slider = ionic.views.View.inherit({
 
       // do nothing if already on requested slide
       if (index == to) return;
+
+      if (!slides) {
+        index = to;
+        return;
+      }
 
       if (browser.transitions) {
 
@@ -8336,7 +8414,7 @@ ionic.views.Slider = ionic.views.View.inherit({
     var events = {
 
       handleEvent: function(event) {
-        if(event.type == 'mousedown' || event.type == 'mouseup' || event.type == 'mousemove') {
+        if(!event.touches && event.pageX && event.pageY) {
           event.touches = [{
             pageX: event.pageX,
             pageY: event.pageY
@@ -8344,12 +8422,12 @@ ionic.views.Slider = ionic.views.View.inherit({
         }
 
         switch (event.type) {
-          case 'mousedown': this.start(event); break;
-          case 'touchstart': this.start(event); break;
-          case 'touchmove': this.touchmove(event); break;
-          case 'mousemove': this.touchmove(event); break;
-          case 'touchend': offloadFn(this.end(event)); break;
-          case 'mouseup': offloadFn(this.end(event)); break;
+          case touchStartEvent: this.start(event); break;
+          case mouseStartEvent: this.start(event); break;
+          case touchMoveEvent: this.touchmove(event); break;
+          case mouseMoveEvent: this.touchmove(event); break;
+          case touchEndEvent: offloadFn(this.end(event)); break;
+          case mouseEndEvent: offloadFn(this.end(event)); break;
           case 'webkitTransitionEnd':
           case 'msTransitionEnd':
           case 'oTransitionEnd':
@@ -8362,6 +8440,11 @@ ionic.views.Slider = ionic.views.View.inherit({
 
       },
       start: function(event) {
+
+        // prevent to start if there is no valid event
+        if (!event.touches) {
+          return;
+        }
 
         var touches = event.touches[0];
 
@@ -8384,20 +8467,22 @@ ionic.views.Slider = ionic.views.View.inherit({
         delta = {};
 
         // attach touchmove and touchend listeners
-        if(browser.touch) {
-          element.addEventListener('touchmove', this, false);
-          element.addEventListener('touchend', this, false);
-        } else {
-          element.addEventListener('mousemove', this, false);
-          element.addEventListener('mouseup', this, false);
-          document.addEventListener('mouseup', this, false);
-        }
+        element.addEventListener(touchMoveEvent, this, false);
+        element.addEventListener(mouseMoveEvent, this, false);
+
+        element.addEventListener(touchEndEvent, this, false);
+        element.addEventListener(mouseEndEvent, this, false);
+
+        document.addEventListener(touchEndEvent, this, false);
+        document.addEventListener(mouseEndEvent, this, false);
       },
       touchmove: function(event) {
 
+        // ensure there is a valid event
         // ensure swiping with one touch and not pinching
         // ensure sliding is enabled
-        if (event.touches.length > 1 ||
+        if (!event.touches ||
+            event.touches.length > 1 ||
             event.scale && event.scale !== 1 ||
             slider.slideIsDisabled) {
           return;
@@ -8435,15 +8520,24 @@ ionic.views.Slider = ionic.views.View.inherit({
             translate(circle(index + 1), delta.x + slidePos[circle(index + 1)], 0);
 
           } else {
-
-            delta.x =
-              delta.x /
-                ( (!index && delta.x > 0 ||         // if first slide and sliding left
-                  index == slides.length - 1 &&     // or if last slide and sliding right
-                  delta.x < 0                       // and if sliding at all
-                ) ?
-                ( Math.abs(delta.x) / width + 1 )      // determine resistance level
-                : 1 );                                 // no resistance if false
+            // If the slider bounces, do the bounce!
+            if(options.bouncing) {
+              delta.x =
+               delta.x /
+                 ( (!index && delta.x > 0 ||         // if first slide and sliding left
+                   index == slides.length - 1 &&     // or if last slide and sliding right
+                   delta.x < 0                       // and if sliding at all
+                 ) ?
+                 ( Math.abs(delta.x) / width + 1 )      // determine resistance level
+                 : 1 );                                 // no resistance if false
+             } else {
+               if(width * index - delta.x < 0) {               //We are trying scroll past left boundary
+                 delta.x = Math.min(delta.x, width * index);  //Set delta.x so we don't go past left screen
+               }
+               if(Math.abs(delta.x) > width * (slides.length - index - 1)){         //We are trying to scroll past right bondary
+                 delta.x = Math.max( -width * (slides.length - index - 1), delta.x);  //Set delta.x so we don't go past right screen
+               }
+             }
 
             // translate 1:1
             translate(index - 1, delta.x + slidePos[index - 1], 0);
@@ -8533,14 +8627,14 @@ ionic.views.Slider = ionic.views.View.inherit({
         }
 
         // kill touchmove and touchend event listeners until touchstart called again
-        if(browser.touch) {
-          element.removeEventListener('touchmove', events, false);
-          element.removeEventListener('touchend', events, false);
-        } else {
-          element.removeEventListener('mousemove', events, false);
-          element.removeEventListener('mouseup', events, false);
-          document.removeEventListener('mouseup', events, false);
-        }
+        element.removeEventListener(touchMoveEvent, events, false);
+        element.removeEventListener(mouseMoveEvent, events, false);
+
+        element.removeEventListener(touchEndEvent, events, false);
+        element.removeEventListener(mouseEndEvent, events, false);
+
+        document.removeEventListener(touchEndEvent, events, false);
+        document.removeEventListener(mouseEndEvent, events, false);
 
         options.onDragEnd && options.onDragEnd();
       },
@@ -8642,7 +8736,8 @@ ionic.views.Slider = ionic.views.View.inherit({
       if (browser.addEventListener) {
 
         // remove current event listeners
-        element.removeEventListener('touchstart', events, false);
+        element.removeEventListener(touchStartEvent, events, false);
+        element.removeEventListener(mouseStartEvent, events, false);
         element.removeEventListener('webkitTransitionEnd', events, false);
         element.removeEventListener('msTransitionEnd', events, false);
         element.removeEventListener('oTransitionEnd', events, false);
@@ -8670,11 +8765,8 @@ ionic.views.Slider = ionic.views.View.inherit({
       if (browser.addEventListener) {
 
         // set touchstart event on element
-        if (browser.touch) {
-          element.addEventListener('touchstart', events, false);
-        } else {
-          element.addEventListener('mousedown', events, false);
-        }
+        element.addEventListener(touchStartEvent, events, false);
+        element.addEventListener(mouseStartEvent, events, false);
 
         if (browser.transitions) {
           element.addEventListener('webkitTransitionEnd', events, false);
