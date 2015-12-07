@@ -95,7 +95,7 @@
             var headerHeight = header.offsetHeight;
 
             $element.bind('scroll', function(e) {
-              if(e.detail.scrollTop > starty) {
+              if(e.detail && e.detail.scrollTop > starty) {
                 // Start shrinking
                 shrinkAmt = headerHeight - Math.max(0, (starty + headerHeight) - e.detail.scrollTop);
                 shrink(header, shrinkAmt, headerHeight);
@@ -118,7 +118,7 @@
       })
 
       .controller('TestCtrl', function($scope, $timeout) {
-        console.log('CONSTRUCT');
+        console.log('CONSTRUCT', ionic.Platform.isIOS());
         $timeout(function() {
         });
       })
