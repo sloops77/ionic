@@ -27,5 +27,7 @@ dist
 
 .idea
 
+.versions
+
 # Coverage directory used by tools like istanbul
 coverage/
