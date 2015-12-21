@@ -193,7 +193,7 @@
      * @returns {boolean} Check if we are running within a WebView (such as Cordova).
      */
     isWebView: function() {
-      return !(!window.cordova && !window.PhoneGap && !window.phonegap && !isTriggerIO());
+      return !(!window.cordova && !window.PhoneGap && !window.phonegap && !self.isTriggerIO());
     },
     /**
      * @ngdoc method
