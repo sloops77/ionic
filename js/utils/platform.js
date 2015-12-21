@@ -153,7 +153,7 @@
         self.platforms.push('webview');
         if (!(!window.cordova && !window.PhoneGap && !window.phonegap)) {
           self.platforms.push('cordova');
-        } else if (typeof window.forge === 'object') {
+        } else if (self.isTriggerIO()) {
           self.platforms.push('trigger');
         }
       } else {
@@ -193,7 +193,15 @@
      * @returns {boolean} Check if we are running within a WebView (such as Cordova).
      */
     isWebView: function() {
-      return !(!window.cordova && !window.PhoneGap && !window.phonegap && window.forge !== 'object');
+      return !(!window.cordova && !window.PhoneGap && !window.phonegap && !isTriggerIO());
+    },
+    /**
+     * @ngdoc method
+     * @name ionic.Platform#isTriggerIO
+     * @returns {boolean} Check if we are running within a TriggerIO (such as Cordova).
+     */
+    isTriggerIO: function() {
+      return window.forge && window.forge.is && window.forge.is.mobile();
     },
     /**
      * @ngdoc method
